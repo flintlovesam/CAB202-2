@@ -107,7 +107,7 @@ int main( void ) {
 void setup() {
 	dead = false;
 	over = false;
-	level = 2;
+	level = 1;
 	lives = 3;
 	score = 0;
 
@@ -175,24 +175,26 @@ int first_platform(int platform_width) {
  */
 int hori_plat_offset(int prev_x_pos, int prev_plat_width, int platform_width) {
 	int new_hori_offset;
-	//int offset_side = rand() % 2;
+	int offset_side = rand() % 2;
 
 	do {
-		new_hori_offset = rand() % 8;
+		new_hori_offset = rand() % 16;
 	} while(new_hori_offset < 3);
 
-	
-
-
-
-	/////// DO THIS 
-
-
-
-
-	new_hori_offset += prev_x_pos + prev_plat_width;
-
-
+	if(((new_hori_offset + prev_x_pos + prev_plat_width) > MAX_SCREEN_WIDTH - 1) && (prev_x_pos - (new_hori_offset + platform_width) < 0)) {
+		if(offset_side == 0) {
+			new_hori_offset = prev_x_pos - (new_hori_offset + platform_width);
+		}
+		else if(offset_side == 1) {
+			new_hori_offset = new_hori_offset + prev_x_pos + prev_plat_width;
+		}
+	}	
+	else if((new_hori_offset + prev_x_pos + prev_plat_width) > MAX_SCREEN_WIDTH - 1) {
+		new_hori_offset = prev_x_pos - (new_hori_offset + platform_width);
+	}
+	else if(prev_x_pos - (new_hori_offset + platform_width) < 0) {
+		new_hori_offset = new_hori_offset + prev_x_pos + prev_plat_width;
+	}
 	return new_hori_offset;
 }
 

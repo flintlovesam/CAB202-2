@@ -22,14 +22,16 @@
 // Global variables containing "long-term" state of program
 // ----------------------------------------------------------------
 
-// Randomise the platform using rand()
-
 // Game is ideal for a 55x70 screen
-#define MAX_SCREEN_WIDTH 55
-#define MAX_SCREEN_HEIGHT 49 // CHANGE To 70 WHEN DONE
+#define MAX_SCREEN_WIDTH 70 // COLUMES change to 70
+#define MAX_SCREEN_HEIGHT 49 // CHANGE To 70 WHEN DONE HEIGHT
 
-// Timer to count elapsed time
-timer_id game_timer;
+// Timers
+#define MILLISECONDS 1000
+timer_id game_timer; // Timer to count elapsed time
+timer_id platform_timer; // Timer used to update platforms
+int game_seconds = 0;
+int game_minutes = 0;
 
 // Player sprite
 sprite_id player;
@@ -83,6 +85,7 @@ void pause_for_exit();
 char *make_platform();
 
 bool process_key();
+bool process_timer();
 
 int first_platform();
 int hori_plat_offset();
@@ -114,7 +117,8 @@ void setup() {
 	setup_platforms();
 	setup_screen();
 	setup_player();
-	// To do: Setup platforms
+
+	game_timer = create_timer(MILLISECONDS);
 }
 
 /*
@@ -178,10 +182,10 @@ int hori_plat_offset(int prev_x_pos, int prev_plat_width, int platform_width) {
 	int offset_side = rand() % 2;
 
 	do {
-		new_hori_offset = rand() % 16;
+		new_hori_offset = rand() % 35;
 	} while(new_hori_offset < 3);
 
-	if(((new_hori_offset + prev_x_pos + prev_plat_width) > MAX_SCREEN_WIDTH - 1) && (prev_x_pos - (new_hori_offset + platform_width) < 0)) {
+	if(((prev_x_pos + prev_plat_width + new_hori_offset + platform_width) < MAX_SCREEN_WIDTH - 1) && (prev_x_pos - (new_hori_offset + platform_width) > 0)) {
 		if(offset_side == 0) {
 			new_hori_offset = prev_x_pos - (new_hori_offset + platform_width);
 		}
@@ -205,7 +209,7 @@ int vert_plat_offset() {
 	int new_vert_offset;
 
 	do {
-		new_vert_offset = (rand() % 9);
+		new_vert_offset = (rand() % 12);
 	} while(new_vert_offset < 4);
 
 	return new_vert_offset;
@@ -252,11 +256,7 @@ void setup_platforms() {
 
 			x_pos = x_offset;
 			y_pos = prev_y_pos + y_offset;
-			printf("%d in x   %d in y\n", x_pos, y_pos); // TEMPORARY TEMPORARY TEMPORARY TEMPORARY
 		}
-
-
-
 		platforms[i] = sprite_create(x_pos, y_pos, true_width, 2, bmap);
 	}
 }
@@ -282,7 +282,6 @@ void pause_for_exit() {
 	" #     #  #     # "
 	" #######  ####### ";
 
-	//draw_line(0, 0, MAX_SCREEN_WIDTH - 1, MAX_SCREEN_HEIGHT - 1, ' '); //TO DO MAKE 3 more to clear screen
 	exit_sprite = sprite_create((MAX_SCREEN_WIDTH - 16) / 2, (MAX_SCREEN_HEIGHT - 5) / 2, 18, 6, exit_bitmap);
 	sprite_draw(exit_sprite);
 	wait_char();
@@ -299,7 +298,7 @@ void event_loop() { // To do: process human movement
 		bool must_redraw = false;
 
 		must_redraw = must_redraw || process_key();
-		//must_redraw = must_redraw || process_timer(); // To Do
+		must_redraw = must_redraw || process_timer(); // To Do
 
 		if(must_redraw) {
 			draw_all();
@@ -315,7 +314,7 @@ void event_loop() { // To do: process human movement
 void draw_hud() {
 	draw_line(0, 1, (MAX_SCREEN_WIDTH - 1), 1, '-');
 	draw_formatted(0, 0, "Lives: %d", lives);
-	draw_formatted((MAX_SCREEN_WIDTH - 19), 0, "Time Elapsed: 04:20");
+	draw_formatted((MAX_SCREEN_WIDTH - 19), 0, "Time Elapsed: %02d:%02d", game_minutes, game_seconds);
 	draw_line(0, (MAX_SCREEN_HEIGHT - 2), (MAX_SCREEN_WIDTH - 1), (MAX_SCREEN_HEIGHT - 2), '-');
 	draw_formatted(0, (MAX_SCREEN_HEIGHT - 1), "Level: %d with a Score: %d", level, score);
 	if(over) {
@@ -361,7 +360,25 @@ bool process_key() {
 	while((player->y + 2) > MAX_SCREEN_HEIGHT - 3) player->y--;
 
 	return x0 != player->x || y0 != player->y;
+}
 
+/*
+ * Process timer expiration, returning true if and only if the
+ * has expired
+ */
+bool process_timer() {
+	if(timer_expired(game_timer)) {
+		game_seconds++;
+
+		if(game_seconds == 60) {
+			game_seconds = 0;
+			game_minutes++;
+		}
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
 /*
@@ -372,6 +389,8 @@ void draw_all() {
 
 	for(int i = 0; i < 13; i++){
 		sprite_draw(platforms[i]);
+
+		// ADD A IF X < 0 -> is_visible = false
 	}
 
 	draw_hud();

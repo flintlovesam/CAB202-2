@@ -1,2 +1,2 @@
 # CAB202
-Semester One, 2016
+Semester one, 2016

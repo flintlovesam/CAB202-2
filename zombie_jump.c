@@ -182,10 +182,17 @@ int hori_plat_offset(int prev_x_pos, int prev_plat_width, int platform_width) {
 	int offset_side = rand() % 2;
 
 	do {
+<<<<<<< HEAD
 		new_hori_offset = rand() % 35;
 	} while(new_hori_offset < 3);
 
 	if(((prev_x_pos + prev_plat_width + new_hori_offset + platform_width) < MAX_SCREEN_WIDTH - 1) && (prev_x_pos - (new_hori_offset + platform_width) > 0)) {
+=======
+		new_hori_offset = rand() % 16;
+	} while(new_hori_offset < 3);
+
+	if(((new_hori_offset + prev_x_pos + prev_plat_width) > MAX_SCREEN_WIDTH - 1) && (prev_x_pos - (new_hori_offset + platform_width) < 0)) {
+>>>>>>> master
 		if(offset_side == 0) {
 			new_hori_offset = prev_x_pos - (new_hori_offset + platform_width);
 		}

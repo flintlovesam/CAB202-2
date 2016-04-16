@@ -335,9 +335,10 @@ bool process_key() {
 		return false;
 	}
 
-	// Remember original position
+	// Remember original position and level
 	int x0 = player->x;
 	int y0 = player->y;
+	int old_level = level;
 
 	// Update position
 	if(key == LEFT) {
@@ -352,6 +353,13 @@ bool process_key() {
 	else if(key == DOWN) {
 		player->y++;
 	}
+	else if(key == LEVEL) {
+		if(level < 3) {
+			level++;
+		}
+		else if(level == 3)
+			level = 1;
+	}
 
 	// Make sure still inside window
 	while(player->x < 0) player->x++;
@@ -359,7 +367,7 @@ bool process_key() {
 	while(player->x > MAX_SCREEN_WIDTH - 1) player->x--;
 	while((player->y + 2) > MAX_SCREEN_HEIGHT - 3) player->y--;
 
-	return x0 != player->x || y0 != player->y;
+	return x0 != player->x || y0 != player->y || old_level != level;
 }
 
 /*

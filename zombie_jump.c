@@ -28,6 +28,9 @@
 
 // Timers
 #define MILLISECONDS 1000
+#define SLOW_SPEED_MS 2000
+#define NORM_SPEED_MS 1000
+#define FAST_SPEED_MS 250
 timer_id game_timer; // Timer to count elapsed time
 timer_id platform_timer; // Timer used to update platforms
 int game_seconds = 0;
@@ -68,6 +71,9 @@ int score;
 #define DOWN '2'
 #define LEVEL 'l'
 #define QUIT 'q'
+#define SLOW_SPEED 'a'
+#define NORM_SPEED 's'
+#define FAST_SPEED 'd'
 
 // ----------------------------------------------------------------
 // Forward declarations of functions
@@ -119,6 +125,7 @@ void setup() {
 	setup_player();
 
 	game_timer = create_timer(MILLISECONDS);
+	platform_timer = create_timer(NORM_SPEED_MS);
 }
 
 /*
@@ -193,7 +200,7 @@ int hori_plat_offset(int prev_x_pos, int prev_plat_width, int platform_width) {
 			new_hori_offset = new_hori_offset + prev_x_pos + prev_plat_width;
 		}
 	}	
-	else if((new_hori_offset + prev_x_pos + prev_plat_width) > MAX_SCREEN_WIDTH - 1) {
+	else if((new_hori_offset + platform_width + prev_x_pos + prev_plat_width) > MAX_SCREEN_WIDTH - 1) {
 		new_hori_offset = prev_x_pos - (new_hori_offset + platform_width);
 	}
 	else if(prev_x_pos - (new_hori_offset + platform_width) < 0) {
@@ -353,6 +360,18 @@ bool process_key() {
 	else if(key == DOWN) {
 		player->y++;
 	}
+	else if(key == SLOW_SPEED) {
+		timer_reset(platform_timer);
+		platform_timer = create_timer(SLOW_SPEED_MS);
+	}
+	else if(key == NORM_SPEED) {
+		timer_reset(platform_timer);
+		platform_timer = create_timer(NORM_SPEED_MS);
+	}
+	else if(key == FAST_SPEED) {
+		timer_reset(platform_timer);
+		platform_timer = create_timer(FAST_SPEED_MS);
+	}
 	else if(key == LEVEL) {
 		if(level < 3) {
 			level++;
@@ -384,6 +403,12 @@ bool process_timer() {
 		}
 		return true;
 	}
+	else if(timer_expired(platform_timer)) { 
+		for(int i = 0; i < 13; i++){
+			platforms[i]->y--;
+		}
+		return true;
+	}
 	else {
 		return false;
 	}
@@ -398,7 +423,12 @@ void draw_all() {
 	for(int i = 0; i < 13; i++){
 		sprite_draw(platforms[i]);
 
-		// ADD A IF X < 0 -> is_visible = false
+		if(platforms[i]->y <= 0 || platforms[i]->y >= (MAX_SCREEN_HEIGHT - 2)) {
+			platforms[i]->is_visible = false;
+		}
+		else {
+			platforms[i]->is_visible = true;
+		}
 	}
 
 	draw_hud();

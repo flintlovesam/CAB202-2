@@ -78,7 +78,6 @@ int score;
 // ----------------------------------------------------------------
 // Forward declarations of functions
 // ----------------------------------------------------------------
-
 void setup();
 void setup_player();
 void setup_platforms();
@@ -86,6 +85,7 @@ void cleanup();
 void event_loop();
 void draw_hud();
 void draw_all();
+void player_died();
 void pause_for_exit();
 
 char *make_platform();
@@ -96,10 +96,10 @@ bool process_timer();
 int first_platform();
 int hori_plat_offset();
 int vert_plat_offset();
+
 // ----------------------------------------------------------------
 // main function
 // ----------------------------------------------------------------
-
 int main( void ) {
 	srand(time(NULL));
 	setup();
@@ -112,7 +112,6 @@ int main( void ) {
 /*
  *	Set up the game. Sets the terminal to curses mode and places the player
  */
-
 void setup() {
 	dead = false;
 	over = false;
@@ -137,7 +136,7 @@ void setup_player() {
 	"T"
 	"^";
 
-player = sprite_create((MAX_SCREEN_WIDTH / 2), (MAX_SCREEN_HEIGHT) - 6, 1, 3, player_bitmap);
+player = sprite_create((MAX_SCREEN_WIDTH / 2), 6, 1, 3, player_bitmap);
 }
 
 /*
@@ -234,6 +233,7 @@ void setup_platforms() {
 	int prev_y_pos;
 	int x_offset;
 	int y_offset;
+	int type;
 	char * bmap;
 	
 	if(level == 1) {
@@ -246,15 +246,18 @@ void setup_platforms() {
 	}
 
 	for(int i = 0; i < 13; i++) {
-		int type = rand() % 2;
-		bmap = make_platform(plat_min_width, plat_max_width, type);
-		true_width = strlen(bmap) / 2;
-
 		if(i == 0) {
+			type = 0;
+			bmap = make_platform(plat_min_width, plat_max_width, type);
+			true_width = strlen(bmap) / 2;
 			x_pos = first_platform(true_width);
-			y_pos = 15; // TEMPORARY TEMPORARY TEMPORARY TEMPORARY
+			y_pos = 15; // TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
 		}
 		else {
+			type = rand() % 2;
+			bmap = make_platform(plat_min_width, plat_max_width, type);
+			true_width = strlen(bmap) / 2;
+
 			prev_x_pos = platforms[i -1]->x;
 			prev_y_pos = platforms[i - 1]->y;
 			prev_plat_width = platforms[i - 1]->width;
@@ -325,8 +328,8 @@ void draw_hud() {
 	draw_line(0, (MAX_SCREEN_HEIGHT - 2), (MAX_SCREEN_WIDTH - 1), (MAX_SCREEN_HEIGHT - 2), '-');
 	draw_formatted(0, (MAX_SCREEN_HEIGHT - 1), "Level: %d with a Score: %d", level, score);
 	if(over) {
-		draw_string((MAX_SCREEN_WIDTH / 2) - 13, (MAX_SCREEN_HEIGHT / 2), "No more lives remaining...");
-		draw_string((MAX_SCREEN_WIDTH / 2) - 17, (MAX_SCREEN_HEIGHT / 2) + 1, "Press 'r' to restart or 'q' to quit.");
+		draw_string((MAX_SCREEN_WIDTH / 2) - 13, (MAX_SCREEN_HEIGHT / 2) + 5, "No more lives remaining...");
+		draw_string((MAX_SCREEN_WIDTH / 2) - 17, (MAX_SCREEN_HEIGHT / 2) + 6, "Press 'r' to restart or 'q' to quit.");
 	}
 }
 
@@ -346,6 +349,14 @@ bool process_key() {
 	int x0 = player->x;
 	int y0 = player->y;
 	int old_level = level;
+	int old_lives = lives;
+
+	// if (player->x >= platform->x && player->x <= platform->x+true_width) && player->y == platform->y - 1);
+	// player->y++;
+	// else {
+	// player->y--;
+	// }
+
 
 	// Update position
 	if(key == LEFT) {
@@ -380,13 +391,17 @@ bool process_key() {
 			level = 1;
 	}
 
+	if(player->y == 1 || player->y == MAX_SCREEN_HEIGHT - 4) {
+		player_died();
+	}
+
 	// Make sure still inside window
 	while(player->x < 0) player->x++;
 	while(player->y < 2) player->y++;
 	while(player->x > MAX_SCREEN_WIDTH - 1) player->x--;
 	while((player->y + 2) > MAX_SCREEN_HEIGHT - 3) player->y--;
 
-	return x0 != player->x || y0 != player->y || old_level != level;
+	return x0 != player->x || y0 != player->y || old_level != level || old_lives != lives;
 }
 
 /*
@@ -411,6 +426,20 @@ bool process_timer() {
 	}
 	else {
 		return false;
+	}
+}
+
+/*
+ * Called when a player touches the top or the botom of the screen or a deadly platform
+ */ 
+void player_died() {
+	if(lives > 1) {
+		lives--;
+		dead = true;
+	}
+	else {
+		lives--;
+		over = true;
 	}
 }
 

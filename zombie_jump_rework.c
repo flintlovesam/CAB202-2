@@ -14,6 +14,7 @@
 #include <time.h>
 #include <math.h>
 #include <string.h>
+#include <ncurses.h>
 #include "cab202_graphics.h"
 #include "cab202_timers.h"
 #include "cab202_sprites.h"
@@ -29,9 +30,9 @@
 // Timers
 #define MILLISECONDS 1000
 #define PLAYER_UPDATE 500
-#define SLOW_SPEED_MS 2000
-#define NORM_SPEED_MS 1000
-#define FAST_SPEED_MS 250
+#define SLOW_SPEED_MS 1000
+#define NORM_SPEED_MS 500
+#define FAST_SPEED_MS 125
 timer_id game_timer; // Timer to count elapsed time
 timer_id platform_timer; // Timer used to update platforms
 timer_id player_timer; // Timer used to update player
@@ -48,9 +49,6 @@ sprite_id platforms[N_PLATFORMS];
 int plat_min_width; // 7 for level 1 or 3 for others
 int plat_max_width; // 7 for level 1 or 10 for others
 int safe_or_deadly; // 0 for safe platform or 1 for deadly platform
-int safe_count = 0;
-int deadly_count = 0;
-int type;
 
 // Player-alive status: true if and only if the player died.
 bool dead = false;
@@ -70,10 +68,6 @@ int score = 0;
 // ----------------------------------------------------------------
 //	Configuration
 // ----------------------------------------------------------------
-#define LEFT '4'
-#define RIGHT '6'
-#define UP '8'
-#define DOWN '2'
 #define LEVEL 'l'
 #define QUIT 'q'
 #define SLOW_SPEED 'a'
@@ -86,6 +80,7 @@ int score = 0;
 void setup();
 void setup_player();
 void setup_platforms();
+void renew_platforms();
 void cleanup();
 void event_loop();
 void draw_hud();
@@ -112,8 +107,9 @@ int main( void ) {
 		make_platform();
 		event_loop();
 		cleanup();
+
 		dead = false;
-	} while(1);//lives > 3 && get_char() == 'q');
+	} while(lives != 0 || get_char() != 'q');//lives > 3 && get_char() == 'q');
 	return 0;
 }
 
@@ -219,7 +215,7 @@ int vert_plat_offset() {
 
 	do {
 		new_vert_offset = (rand() % 8);
-	} while(new_vert_offset < 4);
+	} while(new_vert_offset < 5);
 
 	return new_vert_offset;
 }
@@ -237,6 +233,9 @@ void setup_platforms() {
 	int x_offset;
 	int y_offset;
 	char * bmap;
+	int safe_count = 0;
+	int deadly_count = 0;
+	int type;
 	
 	if(level == 1) {
 		plat_min_width = 7;
@@ -282,8 +281,6 @@ void setup_platforms() {
 					deadly_count++;
 				}
 			}
-			printf("%d safe\n", safe_count);
-			printf("%d dead\n", deadly_count);
 
 			bmap = make_platform(plat_min_width, plat_max_width, type);
 			true_width = strlen(bmap) / 2;
@@ -298,6 +295,28 @@ void setup_platforms() {
 			y_pos = prev_y_pos + y_offset;
 		}
 		platforms[i] = sprite_create(x_pos, y_pos, true_width, 2, bmap);
+	}
+}
+
+/*
+ * Renews the platform
+ */
+void renew_platforms() {
+	for(int i = 0; i < 14; i++) {
+		if(platforms[i]->y == 0) {
+			if(i == 0) {
+				platforms[i]->y = platforms[13]->y + vert_plat_offset();
+				platforms[i]->x = hori_plat_offset(platforms[14]->x, platforms[14]->width, 7); // change true width
+			}
+			else {
+				platforms[i]->y = platforms[i - 1]->y + vert_plat_offset();
+				platforms[i]->x = hori_plat_offset(platforms[i - 1]->x, platforms[i - 1]->width, 7); //change true width
+			}
+
+
+
+			//platforms[i]-> = platforms[i + ]
+		}
 	}
 }
 
@@ -335,6 +354,7 @@ void event_loop() {
 	draw_all();
 
 	while(!over) {
+		renew_platforms();
 		bool must_redraw = false;
 
 		must_redraw = must_redraw || process_key();
@@ -396,16 +416,18 @@ bool process_key() {
 	int old_lives = lives;
 
 	// Update position
-	if(key == LEFT) {
+	if(key == KEY_LEFT) {
 		player->x--;
 	}
-	else if(key == RIGHT) {
+	else if(key == KEY_RIGHT) {
 		player->x++;
 	}
-	else if(key == UP) {
-		player->y--;
+	else if(key == KEY_UP) {
+		if(level != 1) {
+			player->y--;
+		}
 	}
-	else if(key == DOWN) {
+	else if(key == KEY_DOWN) {
 		player->y++;
 	}
 	else if(key == SLOW_SPEED) {
@@ -476,23 +498,63 @@ bool process_timer() {
 		if(player->y + 2 == platforms[i]->y - 1 && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
 			player_died();
 		}
-		else if(player->x == platforms[i]->x ) {
-
+		else if(player->y + 2 == platforms[i]->y && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
+			player_died();
 		}
+		else if(player->y + 2 == platforms[i]->y + 1 && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
+			player_died();
+		} 
+		else if(player->y == platforms[i]->y && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
+			player_died();
+		}
+		else if(player->y == platforms[i]->y + 1 && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
+			player_died();
+		}
+
 	}
 
 	for(int i = 0; i < 14; i++) {
-		if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y - 1) {
+		if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y - 1 && platforms[i]->bitmap[0] == '=') {
 			return true;
 		}
-		else if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y) {
+		else if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y && platforms[i]->bitmap[0] == '=') {
 			player->y--;
-
 			return true;
 		}
-		else if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y + 1) {
+		else if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y + 1 && platforms[i]->bitmap[0] == '=') {
 			player->y -= 2;
-
+			return true;
+		}
+		else if(player->x == platforms[i]->x && player->y + 2 == platforms[i]->y && platforms[i]->bitmap[0] == '=') {
+			player->x--;
+			return true;
+		}
+		else if(player->x == platforms[i]->x && player->y + 2 == platforms[i]->y + 1 && platforms[i]->bitmap[0] == '=') {
+			player->x--;
+			return true;
+		}
+		else if(player->x == platforms[i]->x && player->y == platforms[i]->y && platforms[i]->bitmap[0] == '=') {
+			player->x--;
+			return true;
+		}
+		else if(player->x == platforms[i]->x && player->y == platforms[i]->y + 1 && platforms[i]->bitmap[0] == '=') {
+			player->x--;
+			return true;
+		}
+		else if(player->x == platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y && platforms[i]->bitmap[0] == '=') {
+			player->x++;
+			return true;
+		}
+		else if(player->x == platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y + 1 && platforms[i]->bitmap[0] == '=') {
+			player->x++;
+			return true;
+		}
+		else if(player->x == platforms[i]->x + platforms[i]->width - 1 && player->y == platforms[i]->y && platforms[i]->bitmap[0] == '=') {
+			player->x++;
+			return true;
+		}
+		else if(player->x == platforms[i]->x + platforms[i]->width - 1 && player->y == platforms[i]->y + 1 && platforms[i]->bitmap[0] == '=') {
+			player->x++;
 			return true;
 		}
 	}

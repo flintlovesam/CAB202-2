@@ -5,8 +5,8 @@
  *	08-Apr-2016 -- Created.
  *  10-Apr-2016 -- Player sprite and platforms set up. (No collision as of yet)
  */
-// ADD GITHUB COMMIT TIMELINE
-// Added string.h for strlen()
+
+ // Added string.h for strlen()
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,7 +14,6 @@
 #include <time.h>
 #include <math.h>
 #include <string.h>
-#include <ncurses.h>
 #include "cab202_graphics.h"
 #include "cab202_timers.h"
 #include "cab202_sprites.h"
@@ -25,17 +24,15 @@
 
 // Game is ideal for a 55x70 screen
 #define MAX_SCREEN_WIDTH 70 // COLUMES change to 70
-#define MAX_SCREEN_HEIGHT 49 // CHANGE To 55 WHEN DONE HEIGHT
+#define MAX_SCREEN_HEIGHT 49 // CHANGE To 70 WHEN DONE HEIGHT
 
 // Timers
 #define MILLISECONDS 1000
-#define PLAYER_UPDATE 500
-#define SLOW_SPEED_MS 1000
-#define NORM_SPEED_MS 500
-#define FAST_SPEED_MS 125
+#define SLOW_SPEED_MS 2000
+#define NORM_SPEED_MS 1000
+#define FAST_SPEED_MS 250
 timer_id game_timer; // Timer to count elapsed time
 timer_id platform_timer; // Timer used to update platforms
-timer_id player_timer; // Timer used to update player
 int game_seconds = 0;
 int game_minutes = 0;
 
@@ -51,38 +48,32 @@ int plat_max_width; // 7 for level 1 or 10 for others
 int safe_or_deadly; // 0 for safe platform or 1 for deadly platform
 
 // Player-alive status: true if and only if the player died.
-bool dead = false;
+bool dead;
 
 // Game-in-progress status: true if and only if the games is finished.
-bool over = false;
-
-// End-game status: true if and only if the game is going to quit.
-bool end = false;
+bool over;
 
 // Current-level status: integer for determining current level.
-int level = 1;
+int level;
 
 // Current-lives status: integer for determining current lives.
-int lives = 3;
+int lives;
 
 // Current-score status: integer for determining score.
-int score = 0;
-
-// Current-speed status: integer used for speed.
-int speed = 2;
-
-// Score-from-platform status: integer used to remember which safe platform gave the last score.
-int score_from_platform;
+int score;
 
 // ----------------------------------------------------------------
 //	Configuration
 // ----------------------------------------------------------------
+#define LEFT '4'
+#define RIGHT '6'
+#define UP '8'
+#define DOWN '2'
 #define LEVEL 'l'
-#define RESTART 'r'
 #define QUIT 'q'
-#define SLOW_SPEED '1'
-#define NORM_SPEED '2'
-#define FAST_SPEED '3'
+#define SLOW_SPEED 'a'
+#define NORM_SPEED 's'
+#define FAST_SPEED 'd'
 
 // ----------------------------------------------------------------
 // Forward declarations of functions
@@ -90,16 +81,14 @@ int score_from_platform;
 void setup();
 void setup_player();
 void setup_platforms();
-void renew_platforms();
 void cleanup();
 void event_loop();
 void draw_hud();
 void draw_all();
 void player_died();
-void reset_game();
 void pause_for_exit();
 
-char * make_platform();
+char *make_platform();
 
 bool process_key();
 bool process_timer();
@@ -124,21 +113,18 @@ int main( void ) {
  *	Set up the game. Sets the terminal to curses mode and places the player
  */
 void setup() {
-	setup_screen();
+	dead = false;
+	over = false;
+	level = 1;
+	lives = 3;
+	score = 0;
+
 	setup_platforms();
+	setup_screen();
 	setup_player();
 
 	game_timer = create_timer(MILLISECONDS);
-	player_timer = create_timer(PLAYER_UPDATE);
-	if(speed == 1) {
-		platform_timer = create_timer(SLOW_SPEED_MS);
-	}
-	else if(speed == 2) {
-		platform_timer = create_timer(NORM_SPEED_MS);
-	}
-	else if(speed == 3) {
-		platform_timer = create_timer(FAST_SPEED_MS);
-	}
+	platform_timer = create_timer(NORM_SPEED_MS);
 }
 
 /*
@@ -146,11 +132,11 @@ void setup() {
  */
 void setup_player() {
 	static char * player_bitmap = 
-	"O"
+	"o"
 	"T"
 	"^";
 
-player = sprite_create(platforms[0]->x + rand() % platforms[0]->width, (MAX_SCREEN_HEIGHT - 7), 1, 3, player_bitmap); // TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
+player = sprite_create((MAX_SCREEN_WIDTH / 2), 6, 1, 3, player_bitmap);
 }
 
 /*
@@ -202,7 +188,7 @@ int hori_plat_offset(int prev_x_pos, int prev_plat_width, int platform_width) {
 	int offset_side = rand() % 2;
 
 	do {
-		new_hori_offset = rand() % 27;
+		new_hori_offset = rand() % 35;
 	} while(new_hori_offset < 3);
 
 	if(((prev_x_pos + prev_plat_width + new_hori_offset + platform_width) < MAX_SCREEN_WIDTH - 1) && (prev_x_pos - (new_hori_offset + platform_width) > 0)) {
@@ -229,8 +215,8 @@ int vert_plat_offset() {
 	int new_vert_offset;
 
 	do {
-		new_vert_offset = (rand() % 8);
-	} while(new_vert_offset < 5);
+		new_vert_offset = (rand() % 12);
+	} while(new_vert_offset < 4);
 
 	return new_vert_offset;
 }
@@ -247,10 +233,8 @@ void setup_platforms() {
 	int prev_y_pos;
 	int x_offset;
 	int y_offset;
-	char * bmap;
-	int safe_count = 0;
-	int deadly_count = 0;
 	int type;
+	char * bmap;
 	
 	if(level == 1) {
 		plat_min_width = 7;
@@ -261,42 +245,16 @@ void setup_platforms() {
 		plat_max_width = 10;
 	}
 
-	for(int i = 0; i < 14; i++) {
+	for(int i = 0; i < 13; i++) {
 		if(i == 0) {
 			type = 0;
 			bmap = make_platform(plat_min_width, plat_max_width, type);
 			true_width = strlen(bmap) / 2;
 			x_pos = first_platform(true_width);
-			y_pos = MAX_SCREEN_HEIGHT - 4;
-			safe_count++;
+			y_pos = 15; // TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
 		}
 		else {
 			type = rand() % 2;
-			
-			if(safe_count == 5 && deadly_count == 2) {
-				safe_count = 0;
-				deadly_count = 0;
-			}
-
-			if(type == 0) {
-				if(safe_count == 5) {
-					type = 1;
-					deadly_count++;
-				}
-				else {
-					safe_count++;
-				}
-			}
-			else if(type == 1) {
-				if(deadly_count == 2) {
-					type = 0;
-					safe_count++;
-				}
-				else {
-					deadly_count++;
-				}
-			}
-
 			bmap = make_platform(plat_min_width, plat_max_width, type);
 			true_width = strlen(bmap) / 2;
 
@@ -310,24 +268,6 @@ void setup_platforms() {
 			y_pos = prev_y_pos + y_offset;
 		}
 		platforms[i] = sprite_create(x_pos, y_pos, true_width, 2, bmap);
-	}
-}
-
-/*
- * Renews the platform
- */
-void renew_platforms() {
-	for(int i = 0; i < 14; i++) {
-		if(platforms[i]->y == 0) {
-			if(i == 0) {
-				platforms[i]->y = platforms[13]->y + vert_plat_offset();
-				platforms[i]->x = hori_plat_offset(platforms[14]->x, platforms[14]->width, 7); // change true width
-			}
-			else {
-				platforms[i]->y = platforms[i - 1]->y + vert_plat_offset();
-				platforms[i]->x = hori_plat_offset(platforms[i - 1]->x, platforms[i - 1]->width, 7); //change true width
-			}
-		}
 	}
 }
 
@@ -354,37 +294,28 @@ void pause_for_exit() {
 
 	exit_sprite = sprite_create((MAX_SCREEN_WIDTH - 16) / 2, (MAX_SCREEN_HEIGHT - 5) / 2, 18, 6, exit_bitmap);
 	sprite_draw(exit_sprite);
+	wait_char();
 }
 
 
 /*
  * Processes keyboard timer events to progress game
  */
-void event_loop() {
+void event_loop() { // To do: process human movement
 	draw_all();
 
 	while(!over) {
-		renew_platforms();
 		bool must_redraw = false;
 
 		must_redraw = must_redraw || process_key();
-		must_redraw = must_redraw || process_timer();
+		must_redraw = must_redraw || process_timer(); // To Do
 
 		if(must_redraw) {
 			draw_all();
 		}
-		if(dead == true) {
-			dead = false;
-			reset_game();
-		}
 		timer_pause(20);
 	}
 	pause_for_exit();
-
-	do {
-		process_key();
-	} while(end != true);
-	
 }
 
 /*
@@ -396,17 +327,6 @@ void draw_hud() {
 	draw_formatted((MAX_SCREEN_WIDTH - 19), 0, "Time Elapsed: %02d:%02d", game_minutes, game_seconds);
 	draw_line(0, (MAX_SCREEN_HEIGHT - 2), (MAX_SCREEN_WIDTH - 1), (MAX_SCREEN_HEIGHT - 2), '-');
 	draw_formatted(0, (MAX_SCREEN_HEIGHT - 1), "Level: %d with a Score: %d", level, score);
-
-	if(platform_timer->milliseconds == NORM_SPEED_MS) {
-		draw_formatted(MAX_SCREEN_WIDTH - 4, MAX_SCREEN_HEIGHT - 1, "NORM");
-	}
-	else if(platform_timer->milliseconds == SLOW_SPEED_MS) {
-		draw_formatted(MAX_SCREEN_WIDTH - 4, MAX_SCREEN_HEIGHT - 1, "SLOW");
-	}
-	else if(platform_timer->milliseconds == FAST_SPEED_MS) {
-		draw_formatted(MAX_SCREEN_WIDTH - 4, MAX_SCREEN_HEIGHT - 1, "FAST");
-	}
-
 	if(over) {
 		draw_string((MAX_SCREEN_WIDTH / 2) - 13, (MAX_SCREEN_HEIGHT / 2) + 5, "No more lives remaining...");
 		draw_string((MAX_SCREEN_WIDTH / 2) - 17, (MAX_SCREEN_HEIGHT / 2) + 6, "Press 'r' to restart or 'q' to quit.");
@@ -422,15 +342,8 @@ bool process_key() {
 
 	if(key == QUIT) {
 		over = true;
-		end = true;
 		return false;
 	}
-	else if(key == RESTART) {
-		lives = 3;
-		score = 0;
-		reset_game();
-	}
-
 
 	// Remember original position and level
 	int x0 = player->x;
@@ -438,52 +351,44 @@ bool process_key() {
 	int old_level = level;
 	int old_lives = lives;
 
+	// if (player->x >= platform->x && player->x <= platform->x+true_width) && player->y == platform->y - 1);
+	// player->y++;
+	// else {
+	// player->y--;
+	// }
+
+
 	// Update position
-	if(key == KEY_LEFT) {
-			player->x--;
+	if(key == LEFT) {
+		player->x--;
 	}
-	else if(key == KEY_RIGHT) {
+	else if(key == RIGHT) {
 		player->x++;
 	}
-	else if(key == KEY_UP) {
-		if(level != 1) {
-			player->y--;
+	else if(key == UP) {
+		player->y--;
+	}
+	else if(key == DOWN) {
+		player->y++;
+	}
+	else if(key == SLOW_SPEED) {
+		timer_reset(platform_timer);
+		platform_timer = create_timer(SLOW_SPEED_MS);
+	}
+	else if(key == NORM_SPEED) {
+		timer_reset(platform_timer);
+		platform_timer = create_timer(NORM_SPEED_MS);
+	}
+	else if(key == FAST_SPEED) {
+		timer_reset(platform_timer);
+		platform_timer = create_timer(FAST_SPEED_MS);
+	}
+	else if(key == LEVEL) {
+		if(level < 3) {
+			level++;
 		}
-	}
-	else if(key == KEY_DOWN) {
-		if (level != 1) {
-			player->y++;
-		}
-	}
-	else if(level == 3) {
-		if(key == SLOW_SPEED) {
-			timer_reset(platform_timer);
-			platform_timer = create_timer(SLOW_SPEED_MS);
-			speed = 1;
-	}
-		else if(key == NORM_SPEED) {
-			timer_reset(platform_timer);
-			platform_timer = create_timer(NORM_SPEED_MS);
-			speed = 2;
-	}
-		else if(key == FAST_SPEED) {
-			timer_reset(platform_timer);
-			platform_timer = create_timer(FAST_SPEED_MS);
-			speed = 3;
-		}
-	}
-
-	if(key == LEVEL) {
-		lives = 3;
-		score = 0;
-		speed = 2;
-		level++;
-
-		if(level == 4) {
-			level = level - 3;
-			reset_game();
-		}
-		reset_game();
+		else if(level == 3)
+			level = 1;
 	}
 
 	if(player->y == 1 || player->y == MAX_SCREEN_HEIGHT - 4) {
@@ -513,64 +418,15 @@ bool process_timer() {
 		}
 		return true;
 	}
-	else if(timer_expired(platform_timer)) {
-		for(int i = 0; i < 14; i++) {
+	else if(timer_expired(platform_timer)) { 
+		for(int i = 0; i < 13; i++){
 			platforms[i]->y--;
 		}
 		return true;
 	}
-	else if(timer_expired(player_timer)) {
-		for(int i = 0; i < 14; i++) {
-			if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y - 1) {
-				return false;
-			}
-		}
-		player->y++;
-		return true;
+	else {
+		return false;
 	}
-
-	for(int i = 0; i < 14; i++) {
-		if(player->y + 2 == platforms[i]->y - 1 && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
-			player_died();
-		}
-		else if(player->y + 2 == platforms[i]->y && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
-			player_died();
-		}
-		else if(player->y + 2 == platforms[i]->y + 1 && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
-			player_died();
-		} 
-		else if(player->y == platforms[i]->y && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
-			player_died();
-		}
-		else if(player->y == platforms[i]->y + 1 && player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && platforms[i]->bitmap[0] == 'x') {
-			player_died();
-		}
-	}
-
-	for(int i = 0; i < 14; i++) {
-		if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y - 1 && platforms[i]->bitmap[0] == '=') {
-			return true;
-		}
-		else if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y && platforms[i]->bitmap[0] == '=') {
-			player->y--;
-
-			if(score_from_platform != i) {
-				score++;
-				score_from_platform = i;
-			}
-			return true;
-		}
-		else if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y + 1 && platforms[i]->bitmap[0] == '=') {
-			player->y -= 2;
-
-			if(score_from_platform != i) {
-				score++;
-				score_from_platform = i;
-			}
-			return true;
-		}
-	}
-	return true;
 }
 
 /*
@@ -593,7 +449,7 @@ void player_died() {
 void draw_all() {
 	clear_screen();
 
-	for(int i = 0; i < 14; i++){
+	for(int i = 0; i < 13; i++){
 		sprite_draw(platforms[i]);
 
 		if(platforms[i]->y <= 0 || platforms[i]->y >= (MAX_SCREEN_HEIGHT - 2)) {
@@ -610,14 +466,14 @@ void draw_all() {
 
 }
 
-/*
- * Restarts the game without chaning the level, score, and lives.
- */
-void reset_game() {
-	over = false;
-	score_from_platform = 0;
-	setup();
-	event_loop();
-}
+
+
+
+
+
+
+
+
+
 
 

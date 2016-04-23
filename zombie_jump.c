@@ -74,6 +74,10 @@ int speed = 2;
 // Score-from-platform status: integer used to remember which safe platform gave the last score.
 int score_from_platform;
 
+// Jump counter: integer used to remember how many incrememnts are needed to the y value of the player
+int jump_counter = 0;
+
+
 // ----------------------------------------------------------------
 //	Configuration
 // ----------------------------------------------------------------
@@ -150,7 +154,7 @@ void setup_player() {
 	"T"
 	"^";
 
-player = sprite_create(platforms[0]->x + rand() % platforms[0]->width, (MAX_SCREEN_HEIGHT - 7), 1, 3, player_bitmap); // TEMPORARY TEMPORARY TEMPORARY TEMPORARY TEMPORARY
+player = sprite_create(platforms[0]->x + rand() % platforms[0]->width, (MAX_SCREEN_HEIGHT - 7), 1, 3, player_bitmap);
 }
 
 /*
@@ -202,7 +206,7 @@ int hori_plat_offset(int prev_x_pos, int prev_plat_width, int platform_width) {
 	int offset_side = rand() % 2;
 
 	do {
-		new_hori_offset = rand() % 27;
+		new_hori_offset = rand() % 26;
 	} while(new_hori_offset < 3);
 
 	if(((prev_x_pos + prev_plat_width + new_hori_offset + platform_width) < MAX_SCREEN_WIDTH - 1) && (prev_x_pos - (new_hori_offset + platform_width) > 0)) {
@@ -440,19 +444,39 @@ bool process_key() {
 
 	// Update position
 	if(key == KEY_LEFT) {
+		if(level == 1) {
 			player->x--;
+		}
+		else {
+			player->dx -= 0.5;
+		}
 	}
 	else if(key == KEY_RIGHT) {
-		player->x++;
+		if(level == 1) {
+			player->x++;
+		}
+		else {
+			player->dx += 0.5;
+		}
 	}
 	else if(key == KEY_UP) {
-		if(level != 1) {
-			player->y--;
+		if (level != 1) {
+			for(int i = 0; i < N_PLATFORMS; i++) {
+				if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y - 1) {
+						jump_counter = 4;
+				}
+			}
+			
 		}
 	}
 	else if(key == KEY_DOWN) {
 		if (level != 1) {
-			player->y++;
+			for(int i = 0; i < N_PLATFORMS; i++) {
+				if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y - 1) {
+					player->dx = 0;
+				}
+			}
+			
 		}
 	}
 	else if(level == 3) {
@@ -520,12 +544,28 @@ bool process_timer() {
 		return true;
 	}
 	else if(timer_expired(player_timer)) {
+		player->x = round(player->x + player->dx);
+
 		for(int i = 0; i < 14; i++) {
 			if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y - 1) {
 				return false;
 			}
 		}
-		player->y++;
+
+		if(level == 1) {
+			player->y++;
+		}
+		else {
+			if(jump_counter != 0) {
+				player->y = round(player->y - jump_counter);
+				jump_counter--;
+			}
+			else if(jump_counter == 0) {
+				// AND FOR?
+				player->y = player->y + 2;
+			}
+		}
+		
 		return true;
 	}
 
@@ -579,6 +619,7 @@ bool process_timer() {
 void player_died() {
 	if(lives > 1) {
 		lives--;
+		player->dx = 0;
 		dead = true;
 	}
 	else {

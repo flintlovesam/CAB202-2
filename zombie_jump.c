@@ -399,7 +399,12 @@ void draw_hud() {
 	draw_formatted(0, 0, "Lives: %d", lives);
 	draw_formatted((MAX_SCREEN_WIDTH - 19), 0, "Time Elapsed: %02d:%02d", game_minutes, game_seconds);
 	draw_line(0, (MAX_SCREEN_HEIGHT - 2), (MAX_SCREEN_WIDTH - 1), (MAX_SCREEN_HEIGHT - 2), '-');
-	draw_formatted(0, (MAX_SCREEN_HEIGHT - 1), "Level: %d with a Score: %d", level, score);
+	if(level == 1) {
+		draw_formatted(0, (MAX_SCREEN_HEIGHT - 1), "Level: %d with a Score: %d | 'l' for Levels - 1, 2, or 3", level, score);
+	}
+	else {
+		draw_formatted(0, (MAX_SCREEN_HEIGHT - 1), "Level: %d with a Score: %d | 'l' for Levels | 1, 2, or 3 for speed |", level, score);
+	}	
 
 	if(platform_timer->milliseconds == NORM_SPEED_MS) {
 		draw_formatted(MAX_SCREEN_WIDTH - 4, MAX_SCREEN_HEIGHT - 1, "NORM");
@@ -424,14 +429,16 @@ void draw_hud() {
 bool process_key() {
 	int key = get_char();
 
-	if(key == QUIT) {
+	if(key == QUIT && lives == 0) {
 		over = true;
 		end = true;
 		return false;
 	}
-	else if(key == RESTART) {
+	else if(key == RESTART && lives == 0) {
 		lives = 3;
 		score = 0;
+		game_seconds = 0;
+		game_minutes = 0;
 		reset_game();
 	}
 
@@ -561,8 +568,8 @@ bool process_timer() {
 				jump_counter--;
 			}
 			else if(jump_counter == 0) {
-				// AND FOR?
-				player->y = player->y + 2;
+				player->y = player->y + player->dy;
+				player->dy++;
 			}
 		}
 		
@@ -657,6 +664,7 @@ void draw_all() {
 void reset_game() {
 	over = false;
 	score_from_platform = 0;
+	player->dy = 0;
 	setup();
 	event_loop();
 }

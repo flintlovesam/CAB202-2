@@ -396,7 +396,7 @@ void event_loop() {
  */
 void draw_hud() {
 	draw_line(0, 1, (MAX_SCREEN_WIDTH - 1), 1, '-');
-	draw_formatted(0, 0, "Lives: %d", lives);
+	draw_formatted(0, 0, "Lives: %d      Controls: Up, Down, Left, Right", lives);
 	draw_formatted((MAX_SCREEN_WIDTH - 19), 0, "Time Elapsed: %02d:%02d", game_minutes, game_seconds);
 	draw_line(0, (MAX_SCREEN_HEIGHT - 2), (MAX_SCREEN_WIDTH - 1), (MAX_SCREEN_HEIGHT - 2), '-');
 	if(level == 1) {
@@ -517,7 +517,7 @@ bool process_key() {
 		reset_game();
 	}
 
-	if(player->y == 1 || player->y == MAX_SCREEN_HEIGHT - 4) {
+	if(player->y <= 1 || player->y >= MAX_SCREEN_HEIGHT - 4) {
 		player_died();
 	}
 
@@ -595,6 +595,19 @@ bool process_timer() {
 	}
 
 	for(int i = 0; i < 14; i++) {
+		if(player->x == platforms[i]->x - 1 && player->x == platforms[i]->x + platforms[i]->width && player->y + 2 == platforms[i]->y + 1 && platforms[i]->bitmap[0] == '=') {
+			player->dx = 0;
+		}
+		else if(player->x == platforms[i]->x - 1 && player->x == platforms[i]->x + platforms[i]->width && player->y == platforms[i]->y && platforms[i]->bitmap[0] == '=') {
+			player->dx = 0;
+		}
+		else if(player->x == platforms[i]->x - 1 && player->x == platforms[i]->x && player->y + 2 == platforms[i]->y + 1 && platforms[i]->bitmap[0] == '=') {
+			player->dx = 0;
+		}
+		else if(player->x == platforms[i]->x - 1 && player->x == platforms[i]->x && player->y == platforms[i]->y && platforms[i]->bitmap[0] == '=') {
+			player->dx = 0;
+		}
+
 		if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y - 1 && platforms[i]->bitmap[0] == '=') {
 			return true;
 		}
@@ -608,6 +621,7 @@ bool process_timer() {
 			return true;
 		}
 		else if(player->x >= platforms[i]->x && player->x <= platforms[i]->x + platforms[i]->width - 1 && player->y + 2 == platforms[i]->y + 1 && platforms[i]->bitmap[0] == '=') {
+			player->dy = 0;
 			player->y -= 2;
 
 			if(score_from_platform != i) {

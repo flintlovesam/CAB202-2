@@ -25,7 +25,7 @@
 
 // Game is ideal for a 55x70 screen
 #define MAX_SCREEN_WIDTH 70 // COLUMES change to 70
-#define MAX_SCREEN_HEIGHT 49 // CHANGE To 55 WHEN DONE HEIGHT
+#define MAX_SCREEN_HEIGHT 55
 
 // Timers
 #define MILLISECONDS 1000
